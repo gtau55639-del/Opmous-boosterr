@@ -13,17 +13,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Sanity check - package.json exists
+      - name: Extract project zip (if needed)
         shell: bash
         run: |
           set -e
-          if [ ! -f "package.json" ]; then
-            echo "ERROR: package.json tidak ditemukan di root repository."
-            echo "Pastikan kamu sudah commit & push isi project (bukan file .zip) langsung ke root repo."
+          if [ -f "package.json" ]; then
+            echo "package.json sudah ada di root. Lewati extract."
+            exit 0
+          fi
+
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: Tidak ada package.json maupun file .zip di root repo."
             ls -la
             exit 1
           fi
-          echo "package.json ditemukan di root repo. OK."
+
+          echo "Ditemukan zip: $ZIP_FILE. Meng-extract ke root repo..."
+          unzip -o "$ZIP_FILE" -d .
+
+          if [ ! -f "package.json" ]; then
+            echo "ERROR: Setelah extract, package.json tetap tidak ditemukan di root."
+            echo "Kemungkinan isi zip ada di dalam satu folder pembungkus. Isi zip:"
+            unzip -l "$ZIP_FILE"
+            exit 1
+          fi
+          echo "Extract berhasil. package.json ditemukan di root."
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
