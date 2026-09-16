@@ -3,22 +3,33 @@ name: Build OPMOUS Booster APK
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   build:
     name: Build Android APK
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Sanity check - package.json exists
+        shell: bash
+        run: |
+          set -e
+          if [ ! -f "package.json" ]; then
+            echo "ERROR: package.json tidak ditemukan di root repository."
+            echo "Pastikan kamu sudah commit & push isi project (bukan file .zip) langsung ke root repo."
+            ls -la
+            exit 1
+          fi
+          echo "package.json ditemukan di root repo. OK."
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 22
+          cache: npm
 
       - name: Setup Expo and EAS
         uses: expo/expo-github-action@v8
@@ -26,8 +37,20 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      - name: Check EXPO_TOKEN
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "ERROR: Secret EXPO_TOKEN belum di-set."
+            echo "Tambahkan di: Settings -> Secrets and variables -> Actions -> New repository secret"
+            exit 1
+          fi
+          echo "EXPO_TOKEN tersedia. OK."
+
       - name: Install dependencies
+        shell: bash
         run: npm install --no-audit --no-fund
 
       - name: Build APK
+        shell: bash
         run: eas build --platform android --profile preview --non-interactive
